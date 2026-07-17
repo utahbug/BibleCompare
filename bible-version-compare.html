@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bible Version Compare</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1f2933;
+      --muted: #607080;
+      --line: #d8dee6;
+      --panel: #f5f7fa;
+      --soft: #eef3f7;
+      --link: #1d5f8f;
+      --banner: #1f6fa5;
+      --banner-dark: #174f78;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; color: var(--ink); background: #fff; line-height: 1.5; }
+    body > header { padding: 28px min(7vw, 72px) 26px; border-bottom: 4px solid var(--banner-dark); background: var(--banner); color: #fff; box-shadow: 0 2px 10px rgba(31, 111, 165, .22); }
+    body > header h1 { margin: 0; font-size: clamp(2.15rem, 4vw, 3.2rem); font-weight: 600; line-height: 1.05; letter-spacing: 0; }
+    body > header p { margin: 8px 0 0; color: #e8f4fb; max-width: 880px; }
+    body > header nav { display: none; margin-top: 16px; flex-wrap: wrap; gap: 10px; }
+    body > header nav a { border: 1px solid rgba(255, 255, 255, .45); background: rgba(255, 255, 255, .12); color: #fff; border-radius: 4px; padding: 7px 10px; text-decoration: none; }
+    body > header nav a:hover { background: rgba(255, 255, 255, .22); text-decoration: underline; }
+    a { color: var(--link); }
+    main { padding: 28px min(7vw, 72px) 46px; }
+    .toolbar { display: grid; gap: 16px; padding: 18px; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 22px; }
+    .passage-row { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto; gap: 10px; align-items: end; }
+    label { display: block; font-weight: 600; margin-bottom: 5px; }
+    input[type="text"], textarea { width: 100%; border: 1px solid #b8c4cf; border-radius: 4px; padding: 9px 10px; font: inherit; background: #fff; color: var(--ink); }
+    textarea { min-height: 260px; resize: vertical; line-height: 1.45; }
+    button { border: 1px solid #8ba3b7; background: #fff; color: var(--ink); border-radius: 4px; padding: 9px 12px; cursor: pointer; font: inherit; }
+    button:hover { background: #e8edf3; }
+    .version-options { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+    .version-options label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 500; }
+    .source-links { display: flex; flex-wrap: wrap; gap: 8px; }
+    .source-links a { border: 1px solid var(--line); background: #fff; border-radius: 4px; padding: 7px 10px; text-decoration: none; }
+    .source-links a:hover { text-decoration: underline; }
+    .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+    .version-card { border: 1px solid var(--line); border-radius: 6px; background: #fff; overflow: hidden; }
+    .version-card header { padding: 12px 14px; background: var(--soft); border-bottom: 1px solid var(--line); }
+    .version-card h2 { margin: 0; font-size: 1rem; }
+    .version-card p { margin: 4px 0 0; color: var(--muted); font-size: .88rem; }
+    .version-card .body { padding: 14px; }
+    .notes { margin-top: 24px; max-width: 980px; }
+    .note { margin-top: 12px; color: var(--muted); font-size: .92rem; max-width: 900px; }
+    .small-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .similarity { margin-top: 26px; padding-top: 8px; }
+    .similarity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .result-panel { border: 1px solid var(--line); border-radius: 6px; background: var(--soft); padding: 14px; margin-top: 14px; min-height: 90px; }
+    .result-panel h3 { margin: 0 0 8px; font-size: 1rem; }
+    .result-panel ul { margin: 8px 0 0; padding-left: 20px; }
+    .example-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
+    .name-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .name-chips span { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 5px 10px; }
+    @media (max-width: 760px) {
+      body > header, main { padding-left: 18px; padding-right: 18px; }
+      .passage-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Bible Version Compare</h1>
+    <p>Created especially for Cheryl - a standalone comparison tool for KJV, Joseph Smith Translation, ESV, and the Jefferson Bible. KJV starts selected; turn on the other versions as needed.</p>
+    <nav>
+      <a href="index.html">Lesson Plans Home</a>
+      <a href="wiki/Home.html">Wiki Home</a>
+      <a href="wiki/did-you-know.html">Did You Know?</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="toolbar" aria-label="Comparison controls">
+      <div class="passage-row">
+        <div>
+          <label for="passage">Passage</label>
+          <input id="passage" type="text" value="John 1:1-5" placeholder="Example: John 1:1-5">
+        </div>
+        <button id="copy-notes" type="button">Copy Comparison</button>
+        <button id="clear-text" type="button">Clear Text</button>
+      </div>
+
+      <div>
+        <label>Versions</label>
+        <div class="version-options" id="version-options">
+          <label><input type="checkbox" value="kjv" checked> KJV</label>
+          <label><input type="checkbox" value="jst"> JST</label>
+          <label><input type="checkbox" value="esv"> ESV</label>
+          <label><input type="checkbox" value="jefferson"> Jefferson</label>
+        </div>
+      </div>
+
+      <div>
+        <label>Source Links</label>
+        <div class="source-links">
+          <a href="https://www.churchofjesuschrist.org/study/scriptures?lang=eng" target="_blank" rel="noopener">LDS KJV Scriptures</a>
+          <a href="https://www.churchofjesuschrist.org/study/scriptures/jst?lang=eng" target="_blank" rel="noopener">JST Appendix</a>
+          <a id="esv-link" href="https://www.esv.org/John+1:1-5/" target="_blank" rel="noopener">ESV Passage</a>
+          <a href="https://www.loc.gov/item/mtjbib026581/" target="_blank" rel="noopener">Jefferson Bible</a>
+        </div>
+        <p class="note">This page does not bundle copyrighted text. Paste text or notes from sources you are allowed to use. KJV and the Jefferson Bible are public domain in the United States; ESV and official Church materials should be quoted carefully and linked to their sources.</p>
+      </div>
+    </section>
+
+    <section class="columns" id="columns" aria-label="Version comparison columns"></section>
+
+    <section class="similarity">
+      <h2>Bible and Latter-day Saint Scripture Similarities</h2>
+      <p class="note">Paste two passages or story summaries to look for shared language, imagery, or story patterns. This is a helper for noticing connections, not proof that two passages mean the same thing.</p>
+      <div class="example-buttons">
+        <button type="button" data-example="isaiah">Isaiah in 2 Nephi</button>
+        <button type="button" data-example="sermon">Sermon on the Mount / Temple</button>
+        <button type="button" data-example="malachi">Malachi in 3 Nephi</button>
+      </div>
+      <div class="similarity-grid">
+        <div>
+          <label for="bible-similarity">Bible text or story notes</label>
+          <textarea id="bible-similarity" placeholder="Paste Bible text, references, or a story summary here. Example: Isaiah 2, Matthew 5-7, Malachi 3."></textarea>
+        </div>
+        <div>
+          <label for="lds-similarity">LDS scripture text or story notes</label>
+          <textarea id="lds-similarity" placeholder="Paste Book of Mormon, Doctrine and Covenants, Pearl of Great Price text, references, or a story summary here. Example: 2 Nephi 12, 3 Nephi 12-14, 3 Nephi 24."></textarea>
+        </div>
+      </div>
+      <div class="small-actions">
+        <button id="compare-similarity" type="button">Compare Similarities</button>
+        <button id="clear-similarity" type="button">Clear Similarity Text</button>
+      </div>
+      <div class="result-panel" id="similarity-result">
+        <h3>Similarity Notes</h3>
+        <p>Paste two passages or choose an example, then compare.</p>
+      </div>
+    </section>
+
+    <section class="similarity">
+      <h2>Name Overlap Quick List</h2>
+      <p class="note">Starter names to verify when comparing the Bible and Book of Mormon. A shared name is not automatically a shared person, but it can be a useful lesson doorway.</p>
+      <div class="name-chips" aria-label="Shared name examples">
+        <span>Aaron</span>
+        <span>Benjamin</span>
+        <span>Enos</span>
+        <span>Gideon</span>
+        <span>Isaiah</span>
+        <span>Ishmael</span>
+        <span>Jacob</span>
+        <span>Jeremiah</span>
+        <span>Joseph</span>
+        <span>Lemuel</span>
+        <span>Noah</span>
+        <span>Samuel</span>
+        <span>Timothy</span>
+        <span>Zedekiah</span>
+      </div>
+      <p class="note"><a href="wiki/did-you-know.html">Open the Did You Know note</a> for the fuller working list.</p>
+    </section>
+
+    <section class="notes">
+      <h2>Comparison Notes</h2>
+      <textarea id="comparison-notes" placeholder="What changes in wording, emphasis, doctrine, story detail, or lesson application do you notice?"></textarea>
+      <div class="small-actions">
+        <button id="save-now" type="button">Save Notes</button>
+        <button id="reset-page" type="button">Reset Page</button>
+      </div>
+      <p class="note">Selections and text are saved in this browser on this computer only.</p>
+    </section>
+  </main>
+
+  <script>
+    const versions = [
+      { id: "kjv", title: "King James Version", subtitle: "Public domain; LDS edition links use Gospel Library.", placeholder: "Paste or type the KJV text for this passage here." },
+      { id: "jst", title: "Joseph Smith Translation", subtitle: "Use JST Appendix or footnotes when a passage has JST material.", placeholder: "Paste or summarize the JST wording or note here." },
+      { id: "esv", title: "English Standard Version", subtitle: "Copyrighted; use brief excerpts and source links.", placeholder: "Paste a short ESV excerpt or comparison notes here." },
+      { id: "jefferson", title: "Jefferson Bible", subtitle: "Thomas Jefferson's Life and Morals of Jesus of Nazareth.", placeholder: "Paste relevant Jefferson Bible text or note whether the passage appears there." }
+    ];
+
+    const storageKey = "ldsLessonPlans.bibleVersionCompare";
+    const columns = document.getElementById("columns");
+    const passageInput = document.getElementById("passage");
+    const notesInput = document.getElementById("comparison-notes");
+    const optionInputs = Array.from(document.querySelectorAll("#version-options input[type='checkbox']"));
+    const bibleSimilarityInput = document.getElementById("bible-similarity");
+    const ldsSimilarityInput = document.getElementById("lds-similarity");
+    const similarityResult = document.getElementById("similarity-result");
+    const stopWords = new Set("a an and are as at be but by for from had has have he her him his i in into is it its of on or our she that the their them there they this to unto was were what when where which who will with ye you your".split(" "));
+
+    function encodePassageForEsv(value) {
+      return encodeURIComponent(value.trim()).replace(/%20/g, "+").replace(/%3A/g, ":");
+    }
+
+    function updateSourceLinks() {
+      const passage = passageInput.value.trim() || "John 1:1-5";
+      document.getElementById("esv-link").href = "https://www.esv.org/" + encodePassageForEsv(passage) + "/";
+    }
+
+    function getState() {
+      const selected = optionInputs.filter(input => input.checked).map(input => input.value);
+      const texts = {};
+      document.querySelectorAll("[data-version-text]").forEach(textarea => {
+        texts[textarea.dataset.versionText] = textarea.value;
+      });
+      return {
+        passage: passageInput.value,
+        selected,
+        texts,
+        notes: notesInput.value,
+        bibleSimilarity: bibleSimilarityInput.value,
+        ldsSimilarity: ldsSimilarityInput.value,
+        similarityHtml: similarityResult.innerHTML
+      };
+    }
+
+    function saveState() {
+      localStorage.setItem(storageKey, JSON.stringify(getState()));
+    }
+
+    function loadState() {
+      try { return JSON.parse(localStorage.getItem(storageKey) || "null"); }
+      catch (error) { return null; }
+    }
+
+    function renderColumns() {
+      const existingState = getState();
+      columns.innerHTML = "";
+      const selected = optionInputs.filter(input => input.checked).map(input => input.value);
+      versions.filter(version => selected.includes(version.id)).forEach(version => {
+        const card = document.createElement("article");
+        card.className = "version-card";
+        card.innerHTML = `
+          <header>
+            <h2>${version.title}</h2>
+            <p>${version.subtitle}</p>
+          </header>
+          <div class="body">
+            <textarea data-version-text="${version.id}" placeholder="${version.placeholder}"></textarea>
+          </div>
+        `;
+        columns.appendChild(card);
+        const textarea = card.querySelector("textarea");
+        textarea.value = existingState.texts[version.id] || "";
+        textarea.addEventListener("input", saveState);
+      });
+      saveState();
+    }
+
+    function copyComparison() {
+      const state = getState();
+      const lines = ["Passage: " + (state.passage || "(not set)")];
+      lines.push("");
+      versions.forEach(version => {
+        if (state.selected.includes(version.id)) {
+          lines.push(version.title + ":");
+          lines.push((state.texts[version.id] || "(blank)").trim());
+          lines.push("");
+        }
+      });
+      lines.push("Comparison Notes:");
+      lines.push((state.notes || "(blank)").trim());
+      navigator.clipboard.writeText(lines.join("\n")).catch(() => {
+        alert("Copy failed. You can select and copy the text manually.");
+      });
+    }
+
+    function restore() {
+      const state = loadState();
+      if (!state) {
+        renderColumns();
+        updateSourceLinks();
+        return;
+      }
+      passageInput.value = state.passage || passageInput.value;
+      optionInputs.forEach(input => {
+        input.checked = state.selected ? state.selected.includes(input.value) : input.value === "kjv";
+      });
+      notesInput.value = state.notes || "";
+      bibleSimilarityInput.value = state.bibleSimilarity || "";
+      ldsSimilarityInput.value = state.ldsSimilarity || "";
+      renderColumns();
+      document.querySelectorAll("[data-version-text]").forEach(textarea => {
+        textarea.value = (state.texts && state.texts[textarea.dataset.versionText]) || "";
+      });
+      updateSourceLinks();
+      if (state.similarityHtml) {
+        similarityResult.innerHTML = state.similarityHtml;
+      }
+    }
+
+    function tokenize(text) {
+      return text.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter(word => word.length > 3 && !stopWords.has(word));
+    }
+
+    function compareSimilarity() {
+      const bibleWords = tokenize(bibleSimilarityInput.value);
+      const ldsWords = tokenize(ldsSimilarityInput.value);
+      const bibleSet = new Set(bibleWords);
+      const ldsSet = new Set(ldsWords);
+      const shared = Array.from(bibleSet).filter(word => ldsSet.has(word)).sort();
+      const score = bibleSet.size && ldsSet.size ? Math.round((shared.length / Math.min(bibleSet.size, ldsSet.size)) * 100) : 0;
+      const sharedPreview = shared.slice(0, 30);
+      similarityResult.innerHTML = `
+        <h3>Similarity Notes</h3>
+        <p><strong>Rough shared-word score:</strong> ${score}%</p>
+        <p><strong>Shared terms:</strong> ${sharedPreview.length ? sharedPreview.join(", ") : "None yet. Add more text or story notes."}</p>
+        <ul>
+          <li>Look for direct quotations, repeated images, covenant language, repeated names, and shared story structure.</li>
+          <li>Shared wording can signal quotation, allusion, common biblical language, or simply common religious vocabulary.</li>
+          <li>Verify important connections in the actual scripture text before using them in a lesson.</li>
+        </ul>
+      `;
+      saveState();
+    }
+
+    function loadExample(kind) {
+      const examples = {
+        isaiah: {
+          bible: "Isaiah 2. Mountain of the Lord's house, nations flowing unto it, law going forth from Zion, swords beaten into plowshares.",
+          lds: "2 Nephi 12. Nephi quotes Isaiah. Mountain of the Lord's house, nations flowing unto it, law from Zion, swords beaten into plowshares."
+        },
+        sermon: {
+          bible: "Matthew 5-7. Jesus teaches the Sermon on the Mount: blessed are the poor in spirit, peacemakers, pure in heart, prayer, judging, and building on the rock.",
+          lds: "3 Nephi 12-14. Jesus teaches the people at the temple in Bountiful with many teachings parallel to the Sermon on the Mount."
+        },
+        malachi: {
+          bible: "Malachi 3-4. Messenger prepares the way, tithes and offerings, hearts of fathers and children, Elijah before the great and dreadful day.",
+          lds: "3 Nephi 24-25. Jesus gives the people Malachi's words, including tithes and offerings, Elijah, and hearts of fathers and children."
+        }
+      };
+      bibleSimilarityInput.value = examples[kind].bible;
+      ldsSimilarityInput.value = examples[kind].lds;
+      compareSimilarity();
+    }
+
+    optionInputs.forEach(input => input.addEventListener("change", renderColumns));
+    passageInput.addEventListener("input", () => { updateSourceLinks(); saveState(); });
+    notesInput.addEventListener("input", saveState);
+    bibleSimilarityInput.addEventListener("input", saveState);
+    ldsSimilarityInput.addEventListener("input", saveState);
+    document.getElementById("compare-similarity").addEventListener("click", compareSimilarity);
+    document.getElementById("clear-similarity").addEventListener("click", () => {
+      bibleSimilarityInput.value = "";
+      ldsSimilarityInput.value = "";
+      similarityResult.innerHTML = "<h3>Similarity Notes</h3><p>Paste two passages or choose an example, then compare.</p>";
+      saveState();
+    });
+    document.querySelectorAll("[data-example]").forEach(button => {
+      button.addEventListener("click", () => loadExample(button.dataset.example));
+    });
+    document.getElementById("copy-notes").addEventListener("click", copyComparison);
+    document.getElementById("clear-text").addEventListener("click", () => {
+      document.querySelectorAll("[data-version-text]").forEach(textarea => textarea.value = "");
+      saveState();
+    });
+    document.getElementById("save-now").addEventListener("click", saveState);
+    document.getElementById("reset-page").addEventListener("click", () => {
+      localStorage.removeItem(storageKey);
+      optionInputs.forEach(input => input.checked = input.value === "kjv");
+      passageInput.value = "John 1:1-5";
+      notesInput.value = "";
+      bibleSimilarityInput.value = "";
+      ldsSimilarityInput.value = "";
+      similarityResult.innerHTML = "<h3>Similarity Notes</h3><p>Paste two passages or choose an example, then compare.</p>";
+      renderColumns();
+      updateSourceLinks();
+    });
+
+    restore();
+  </script>
+</body>
+</html>
