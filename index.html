@@ -29,7 +29,7 @@
     .toolbar { display: grid; gap: 16px; padding: 18px; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 22px; }
     .passage-row { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto; gap: 10px; align-items: end; }
     label { display: block; font-weight: 600; margin-bottom: 5px; }
-    input[type="text"], textarea { width: 100%; border: 1px solid #b8c4cf; border-radius: 4px; padding: 9px 10px; font: inherit; background: #fff; color: var(--ink); }
+    input[type="text"], select, textarea { width: 100%; border: 1px solid #b8c4cf; border-radius: 4px; padding: 9px 10px; font: inherit; background: #fff; color: var(--ink); }
     textarea { min-height: 260px; resize: vertical; line-height: 1.45; }
     button { border: 1px solid #8ba3b7; background: #fff; color: var(--ink); border-radius: 4px; padding: 9px 12px; cursor: pointer; font: inherit; }
     button:hover { background: #e8edf3; }
@@ -38,6 +38,7 @@
     .source-links { display: flex; flex-wrap: wrap; gap: 8px; }
     .source-links a { border: 1px solid var(--line); background: #fff; border-radius: 4px; padding: 7px 10px; text-decoration: none; }
     .source-links a:hover { text-decoration: underline; }
+    .source-panel { margin-top: 16px; padding: 14px 18px; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; }
     .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
     .version-card { border: 1px solid var(--line); border-radius: 6px; background: #fff; overflow: hidden; }
     .version-card header { padding: 12px 14px; background: var(--soft); border-bottom: 1px solid var(--line); }
@@ -47,6 +48,12 @@
     .notes { margin-top: 24px; max-width: 980px; }
     .note { margin-top: 12px; color: var(--muted); font-size: .92rem; max-width: 900px; }
     .small-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .passage-builder { display: grid; grid-template-columns: minmax(160px, .9fr) minmax(220px, 1.2fr) minmax(120px, .6fr) minmax(160px, .8fr); gap: 12px; align-items: end; }
+    .passage-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .selected-passage { margin: 0; }
+    .selected-passage span { display: block; color: var(--muted); font-size: .88rem; }
+    .selected-passage strong { display: block; font-size: 1.25rem; color: var(--ink); }
+    .load-status { margin: 0; color: var(--muted); font-size: .92rem; }
     .similarity { margin-top: 26px; padding-top: 8px; }
     .similarity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
     .result-panel { border: 1px solid var(--line); border-radius: 6px; background: var(--soft); padding: 14px; margin-top: 14px; min-height: 90px; }
@@ -55,16 +62,18 @@
     .example-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
     .name-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .name-chips span { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 5px 10px; }
+    .hidden-for-now { display: none; }
     @media (max-width: 760px) {
       body > header, main { padding-left: 18px; padding-right: 18px; }
       .passage-row { grid-template-columns: 1fr; }
+      .passage-builder { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <header>
     <h1>Bible Version Compare</h1>
-    <p>Created especially for Cheryl - a standalone comparison tool for KJV, Joseph Smith Translation, ESV, and the Jefferson Bible. KJV starts selected; turn on the other versions as needed.</p>
+    <p>Created especially for Cheryl - a bible version comparison tool for KJV, Joseph Smith Translation, ESV, and the Jefferson Bible.</p>
     <nav>
       <a href="index.html">Lesson Plans Home</a>
       <a href="wiki/Home.html">Wiki Home</a>
@@ -74,12 +83,34 @@
 
   <main>
     <section class="toolbar" aria-label="Comparison controls">
-      <div class="passage-row">
+      <div class="passage-builder">
         <div>
-          <label for="passage">Passage</label>
-          <input id="passage" type="text" value="John 1:1-5" placeholder="Example: John 1:1-5">
+          <label for="testament">Testament</label>
+          <select id="testament">
+            <option value="old">Old Testament</option>
+            <option value="new" selected>New Testament</option>
+          </select>
         </div>
-        <button id="copy-notes" type="button">Copy Comparison</button>
+        <div>
+          <label for="book">Book</label>
+          <select id="book"></select>
+        </div>
+        <div>
+          <label for="chapter">Chapter</label>
+          <select id="chapter"></select>
+        </div>
+        <div>
+          <label for="verses">Verse(s) optional</label>
+          <input id="verses" type="text" value="1-5" placeholder="Example: 1-5">
+        </div>
+      </div>
+
+      <div class="passage-actions">
+        <p class="selected-passage">
+          <span>Selected passage</span>
+          <strong id="passage-display">John 1:1-5</strong>
+        </p>
+        <input id="passage" type="hidden" value="John 1:1-5">
         <button id="clear-text" type="button">Clear Text</button>
       </div>
 
@@ -93,21 +124,25 @@
         </div>
       </div>
 
-      <div>
-        <label>Source Links</label>
-        <div class="source-links">
-          <a href="https://www.churchofjesuschrist.org/study/scriptures?lang=eng" target="_blank" rel="noopener">LDS KJV Scriptures</a>
-          <a href="https://www.churchofjesuschrist.org/study/scriptures/jst?lang=eng" target="_blank" rel="noopener">JST Appendix</a>
-          <a id="esv-link" href="https://www.esv.org/John+1:1-5/" target="_blank" rel="noopener">ESV Passage</a>
-          <a href="https://www.loc.gov/item/mtjbib026581/" target="_blank" rel="noopener">Jefferson Bible</a>
-        </div>
-        <p class="note">This page does not bundle copyrighted text. Paste text or notes from sources you are allowed to use. KJV and the Jefferson Bible are public domain in the United States; ESV and official Church materials should be quoted carefully and linked to their sources.</p>
-      </div>
     </section>
 
     <section class="columns" id="columns" aria-label="Version comparison columns"></section>
 
-    <section class="similarity">
+    <section class="source-panel" aria-label="Source links">
+      <label>Source Links</label>
+      <div class="source-links">
+        <a href="https://www.churchofjesuschrist.org/study/scriptures?lang=eng" target="_blank" rel="noopener">LDS KJV Scriptures</a>
+        <a href="https://getbible.life/docs" target="_blank" rel="noopener">KJV Auto Source</a>
+        <a href="https://www.churchofjesuschrist.org/study/scriptures/jst?lang=eng" target="_blank" rel="noopener">JST Appendix</a>
+        <a href="https://openscriptureapi.org/docs/study-helps" target="_blank" rel="noopener">JST Auto Source</a>
+        <a id="esv-link" href="https://www.esv.org/John+1:1-5/" target="_blank" rel="noopener">ESV Passage</a>
+        <a href="https://www.loc.gov/item/mtjbib026581/" target="_blank" rel="noopener">Jefferson Bible</a>
+      </div>
+      <p class="note">KJV text loads automatically when online. JST excerpts load when a matching chapter entry exists. ESV requires Crossway API access through a server, and the Jefferson Bible is not a complete verse-by-verse Bible.</p>
+      <p class="load-status" id="auto-load-status">KJV will load automatically after the passage is selected.</p>
+    </section>
+
+    <section class="similarity hidden-for-now">
       <h2>Bible and Latter-day Saint Scripture Similarities</h2>
       <p class="note">Paste two passages or story summaries to look for shared language, imagery, or story patterns. This is a helper for noticing connections, not proof that two passages mean the same thing.</p>
       <div class="example-buttons">
@@ -135,7 +170,7 @@
       </div>
     </section>
 
-    <section class="similarity">
+    <section class="similarity hidden-for-now">
       <h2>Name Overlap Quick List</h2>
       <p class="note">Starter names to verify when comparing the Bible and Book of Mormon. A shared name is not automatically a shared person, but it can be a useful lesson doorway.</p>
       <div class="name-chips" aria-label="Shared name examples">
@@ -157,7 +192,7 @@
       <p class="note"><a href="wiki/did-you-know.html">Open the Did You Know note</a> for the fuller working list.</p>
     </section>
 
-    <section class="notes">
+    <section class="notes hidden-for-now">
       <h2>Comparison Notes</h2>
       <textarea id="comparison-notes" placeholder="What changes in wording, emphasis, doctrine, story detail, or lesson application do you notice?"></textarea>
       <div class="small-actions">
@@ -170,21 +205,121 @@
 
   <script>
     const versions = [
-      { id: "kjv", title: "King James Version", subtitle: "Public domain; LDS edition links use Gospel Library.", placeholder: "Paste or type the KJV text for this passage here." },
-      { id: "jst", title: "Joseph Smith Translation", subtitle: "Use JST Appendix or footnotes when a passage has JST material.", placeholder: "Paste or summarize the JST wording or note here." },
-      { id: "esv", title: "English Standard Version", subtitle: "Copyrighted; use brief excerpts and source links.", placeholder: "Paste a short ESV excerpt or comparison notes here." },
-      { id: "jefferson", title: "Jefferson Bible", subtitle: "Thomas Jefferson's Life and Morals of Jesus of Nazareth.", placeholder: "Paste relevant Jefferson Bible text or note whether the passage appears there." }
+      { id: "kjv", title: "King James Version", subtitle: "Loads automatically when online; LDS edition links use Gospel Library.", placeholder: "KJV text loads automatically when a passage is selected." },
+      { id: "jst", title: "Joseph Smith Translation", subtitle: "Loads automatically when a matching JST chapter entry exists.", placeholder: "JST excerpts load automatically when available." },
+      { id: "esv", title: "English Standard Version", subtitle: "Copyrighted; open the source link or add API support later.", placeholder: "Use the ESV Passage source link, then paste a short excerpt or notes here." },
+      { id: "jefferson", title: "Jefferson Bible", subtitle: "Thomas Jefferson's Life and Morals of Jesus of Nazareth.", placeholder: "Use the Jefferson Bible source link; this is not a complete verse-by-verse Bible." }
     ];
+
+    const bibleBooks = {
+      old: [
+        { name: "Genesis", chapters: 50 },
+        { name: "Exodus", chapters: 40 },
+        { name: "Leviticus", chapters: 27 },
+        { name: "Numbers", chapters: 36 },
+        { name: "Deuteronomy", chapters: 34 },
+        { name: "Joshua", chapters: 24 },
+        { name: "Judges", chapters: 21 },
+        { name: "Ruth", chapters: 4 },
+        { name: "1 Samuel", chapters: 31 },
+        { name: "2 Samuel", chapters: 24 },
+        { name: "1 Kings", chapters: 22 },
+        { name: "2 Kings", chapters: 25 },
+        { name: "1 Chronicles", chapters: 29 },
+        { name: "2 Chronicles", chapters: 36 },
+        { name: "Ezra", chapters: 10 },
+        { name: "Nehemiah", chapters: 13 },
+        { name: "Esther", chapters: 10 },
+        { name: "Job", chapters: 42 },
+        { name: "Psalms", chapters: 150 },
+        { name: "Proverbs", chapters: 31 },
+        { name: "Ecclesiastes", chapters: 12 },
+        { name: "Song of Solomon", chapters: 8 },
+        { name: "Isaiah", chapters: 66 },
+        { name: "Jeremiah", chapters: 52 },
+        { name: "Lamentations", chapters: 5 },
+        { name: "Ezekiel", chapters: 48 },
+        { name: "Daniel", chapters: 12 },
+        { name: "Hosea", chapters: 14 },
+        { name: "Joel", chapters: 3 },
+        { name: "Amos", chapters: 9 },
+        { name: "Obadiah", chapters: 1 },
+        { name: "Jonah", chapters: 4 },
+        { name: "Micah", chapters: 7 },
+        { name: "Nahum", chapters: 3 },
+        { name: "Habakkuk", chapters: 3 },
+        { name: "Zephaniah", chapters: 3 },
+        { name: "Haggai", chapters: 2 },
+        { name: "Zechariah", chapters: 14 },
+        { name: "Malachi", chapters: 4 }
+      ],
+      new: [
+        { name: "Matthew", chapters: 28 },
+        { name: "Mark", chapters: 16 },
+        { name: "Luke", chapters: 24 },
+        { name: "John", chapters: 21 },
+        { name: "Acts", chapters: 28 },
+        { name: "Romans", chapters: 16 },
+        { name: "1 Corinthians", chapters: 16 },
+        { name: "2 Corinthians", chapters: 13 },
+        { name: "Galatians", chapters: 6 },
+        { name: "Ephesians", chapters: 6 },
+        { name: "Philippians", chapters: 4 },
+        { name: "Colossians", chapters: 4 },
+        { name: "1 Thessalonians", chapters: 5 },
+        { name: "2 Thessalonians", chapters: 3 },
+        { name: "1 Timothy", chapters: 6 },
+        { name: "2 Timothy", chapters: 4 },
+        { name: "Titus", chapters: 3 },
+        { name: "Philemon", chapters: 1 },
+        { name: "Hebrews", chapters: 13 },
+        { name: "James", chapters: 5 },
+        { name: "1 Peter", chapters: 5 },
+        { name: "2 Peter", chapters: 3 },
+        { name: "1 John", chapters: 5 },
+        { name: "2 John", chapters: 1 },
+        { name: "3 John", chapters: 1 },
+        { name: "Jude", chapters: 1 },
+        { name: "Revelation", chapters: 22 }
+      ]
+    };
+
+    const builtInJstFallbacks = {
+      mark: {
+        "9": [
+          {
+            label: "JST, Mark 9:3",
+            compareReference: "Mark 9:4",
+            verses: [
+              {
+                verseNumber: "3",
+                text: "And there appeared unto them Elias with Moses, or in other words, John the Baptist and Moses; and they were talking with Jesus."
+              }
+            ]
+          }
+        ]
+      }
+    };
 
     const storageKey = "ldsLessonPlans.bibleVersionCompare";
     const columns = document.getElementById("columns");
     const passageInput = document.getElementById("passage");
+    const passageDisplay = document.getElementById("passage-display");
+    const testamentSelect = document.getElementById("testament");
+    const bookSelect = document.getElementById("book");
+    const chapterSelect = document.getElementById("chapter");
+    const versesInput = document.getElementById("verses");
     const notesInput = document.getElementById("comparison-notes");
     const optionInputs = Array.from(document.querySelectorAll("#version-options input[type='checkbox']"));
+    const autoLoadStatus = document.getElementById("auto-load-status");
     const bibleSimilarityInput = document.getElementById("bible-similarity");
     const ldsSimilarityInput = document.getElementById("lds-similarity");
     const similarityResult = document.getElementById("similarity-result");
     const stopWords = new Set("a an and are as at be but by for from had has have he her him his i in into is it its of on or our she that the their them there they this to unto was were what when where which who will with ye you your".split(" "));
+    let versionTextCache = {};
+    let kjvLoadToken = 0;
+    let jstLoadToken = 0;
+    let autoLoadTimer = null;
 
     function encodePassageForEsv(value) {
       return encodeURIComponent(value.trim()).replace(/%20/g, "+").replace(/%3A/g, ":");
@@ -195,16 +330,344 @@
       document.getElementById("esv-link").href = "https://www.esv.org/" + encodePassageForEsv(passage) + "/";
     }
 
+    function getBookList() {
+      return bibleBooks[testamentSelect.value] || bibleBooks.new;
+    }
+
+    function getSelectedBook() {
+      return getBookList().find(book => book.name === bookSelect.value) || getBookList()[0];
+    }
+
+    function getAllBooks() {
+      return bibleBooks.old.concat(bibleBooks.new);
+    }
+
+    function getSelectedBookNumber() {
+      const selectedBook = getSelectedBook();
+      const index = getAllBooks().findIndex(book => book.name === selectedBook.name);
+      return index >= 0 ? index + 1 : 43;
+    }
+
+    function getOpenScriptureBookId() {
+      return getSelectedBook().name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    }
+
+    function populateBooks(preferredBook) {
+      const books = getBookList();
+      bookSelect.innerHTML = "";
+      books.forEach(book => {
+        const option = document.createElement("option");
+        option.value = book.name;
+        option.textContent = book.name;
+        bookSelect.appendChild(option);
+      });
+      bookSelect.value = books.some(book => book.name === preferredBook) ? preferredBook : books[0].name;
+      populateChapters();
+    }
+
+    function populateChapters(preferredChapter) {
+      const selectedBook = getSelectedBook();
+      chapterSelect.innerHTML = "";
+      for (let chapter = 1; chapter <= selectedBook.chapters; chapter += 1) {
+        const option = document.createElement("option");
+        option.value = String(chapter);
+        option.textContent = String(chapter);
+        chapterSelect.appendChild(option);
+      }
+      const chapterValue = String(preferredChapter || 1);
+      const chapterNumber = Number(chapterValue);
+      chapterSelect.value = chapterNumber >= 1 && chapterNumber <= selectedBook.chapters ? String(chapterNumber) : "1";
+    }
+
+    function updatePassage() {
+      const selectedBook = getSelectedBook();
+      const chapter = chapterSelect.value || "1";
+      const verses = versesInput.value.trim().replace(/^:/, "");
+      const passage = selectedBook.name + " " + chapter + (verses ? ":" + verses : "");
+      passageInput.value = passage;
+      passageDisplay.textContent = passage;
+      updateSourceLinks();
+    }
+
+    function getKjvTextarea() {
+      return document.querySelector('[data-version-text="kjv"]');
+    }
+
+    function getJstTextarea() {
+      return document.querySelector('[data-version-text="jst"]');
+    }
+
+    function getEsvTextarea() {
+      return document.querySelector('[data-version-text="esv"]');
+    }
+
+    function getJeffersonTextarea() {
+      return document.querySelector('[data-version-text="jefferson"]');
+    }
+
+    function getKjvApiUrl() {
+      const selectedBook = getSelectedBook();
+      const chapter = chapterSelect.value || "1";
+      const verses = versesInput.value.trim().replace(/^:/, "");
+      if (verses) {
+        const query = selectedBook.name + " " + chapter + ":" + verses;
+        return "https://query.getbible.net/v2/kjv/" + encodeURIComponent(query);
+      }
+      return "https://api.getbible.net/v2/kjv/" + getSelectedBookNumber() + "/" + chapter + ".json";
+    }
+
+    function formatKjvText(data) {
+      const groups = data && data.verses ? [data] : Object.values(data || {});
+      const lines = [];
+      groups.forEach(group => {
+        (group.verses || []).forEach(verse => {
+          const label = verse.name || ((group.book_name || "") + " " + verse.chapter + ":" + verse.verse).trim();
+          lines.push(label + " " + String(verse.text || "").trim());
+        });
+      });
+      return lines.join("\n");
+    }
+
+    function parseVerseRanges(value) {
+      const cleaned = String(value || "").replace(/–/g, "-").trim();
+      if (!cleaned) {
+        return [];
+      }
+      return cleaned.split(",").map(part => {
+        const match = part.trim().match(/^(\d+)(?:-(\d+))?$/);
+        if (!match) {
+          return null;
+        }
+        const start = Number(match[1]);
+        const end = Number(match[2] || match[1]);
+        return { start: Math.min(start, end), end: Math.max(start, end) };
+      }).filter(Boolean);
+    }
+
+    function rangesOverlap(a, b) {
+      return a.some(left => b.some(right => left.start <= right.end && right.start <= left.end));
+    }
+
+    function parseReferenceRanges(reference) {
+      const ranges = [];
+      const normalized = String(reference || "").replace(/–/g, "-");
+      const referenceParts = normalized.split(";");
+      referenceParts.forEach(part => {
+        const chapterVerse = part.match(/(\d+):(\d+)(?:-(\d+))?/);
+        if (chapterVerse && chapterVerse[1] === String(chapterSelect.value)) {
+          const start = Number(chapterVerse[2]);
+          const end = Number(chapterVerse[3] || chapterVerse[2]);
+          ranges.push({ start: Math.min(start, end), end: Math.max(start, end) });
+        }
+      });
+      return ranges;
+    }
+
+    function formatJstText(data) {
+      const selectedRanges = parseVerseRanges(versesInput.value);
+      const sections = (data.sections || []).filter(section => {
+        if (!selectedRanges.length) {
+          return true;
+        }
+        const compareRanges = parseReferenceRanges(section.compareReference);
+        const labelRanges = parseReferenceRanges(section.label);
+        const allRanges = compareRanges.concat(labelRanges);
+        return !allRanges.length || rangesOverlap(selectedRanges, allRanges);
+      });
+
+      if (!sections.length) {
+        return "";
+      }
+
+      return sections.map(section => {
+        const heading = section.label + (section.compareReference ? " (compare " + section.compareReference + ")" : "");
+        const verseLines = (section.verses || []).map(verse => {
+          return "JST verse " + verse.verseNumber + " " + String(verse.text || "").trim();
+        });
+        return [heading].concat(verseLines).join("\n");
+      }).join("\n\n");
+    }
+
+    function getBuiltInJstFallbackText() {
+      const bookFallbacks = builtInJstFallbacks[getOpenScriptureBookId()];
+      const chapterFallbacks = bookFallbacks && bookFallbacks[chapterSelect.value || "1"];
+      if (!chapterFallbacks) {
+        return "";
+      }
+      return formatJstText({ sections: chapterFallbacks });
+    }
+
+    async function loadKjvPassage(force = true) {
+      const kjvSelected = optionInputs.some(input => input.value === "kjv" && input.checked);
+      const textarea = getKjvTextarea();
+      if (!kjvSelected || !textarea) {
+        return "";
+      }
+
+      const passage = passageInput.value.trim() || "John 1:1-5";
+      if (!force && textarea.value.trim()) {
+        return "KJV already loaded.";
+      }
+
+      const token = ++kjvLoadToken;
+      autoLoadStatus.textContent = "Loading KJV for " + passage + "...";
+
+      try {
+        const response = await fetch(getKjvApiUrl());
+        if (!response.ok) {
+          throw new Error("KJV request failed");
+        }
+        const data = await response.json();
+        const text = formatKjvText(data);
+        if (token !== kjvLoadToken) {
+          return "";
+        }
+        if (!text) {
+          throw new Error("No KJV verses returned");
+        }
+        textarea.value = text;
+        versionTextCache.kjv = text;
+        saveState();
+        return "KJV loaded.";
+      }
+      catch (error) {
+        if (token !== kjvLoadToken) {
+          return "";
+        }
+        return "KJV could not load automatically.";
+      }
+    }
+
+    async function loadJstPassage(force = true) {
+      const jstSelected = optionInputs.some(input => input.value === "jst" && input.checked);
+      const textarea = getJstTextarea();
+      if (!jstSelected || !textarea) {
+        return "";
+      }
+
+      const passage = passageInput.value.trim() || "John 1:1-5";
+      if (!force && textarea.value.trim()) {
+        return "JST already loaded.";
+      }
+
+      const token = ++jstLoadToken;
+      autoLoadStatus.textContent = "Looking for JST excerpts for " + passage + "...";
+
+      try {
+        const url = "https://openscriptureapi.org/api/study-helps/v1/lds/en/entry/jst-" + getOpenScriptureBookId() + "-" + (chapterSelect.value || "1");
+        const response = await fetch(url);
+        if (response.status === 404) {
+          const fallbackText = getBuiltInJstFallbackText();
+          textarea.value = fallbackText || "No JST excerpt was found for " + getSelectedBook().name + " " + (chapterSelect.value || "1") + ".";
+          versionTextCache.jst = textarea.value;
+          saveState();
+          return fallbackText ? "JST loaded from built-in sample." : "No JST excerpt found.";
+        }
+        if (!response.ok) {
+          throw new Error("JST request failed");
+        }
+        const data = await response.json();
+        const text = formatJstText(data);
+        if (token !== jstLoadToken) {
+          return "";
+        }
+        textarea.value = text || "A JST chapter entry exists, but no matching section was found for the selected verse range.";
+        versionTextCache.jst = textarea.value;
+        saveState();
+        return text ? "JST loaded." : "No matching JST section found.";
+      }
+      catch (error) {
+        if (token !== jstLoadToken) {
+          return "";
+        }
+        const fallbackText = getBuiltInJstFallbackText();
+        if (fallbackText) {
+          textarea.value = fallbackText;
+          versionTextCache.jst = textarea.value;
+          saveState();
+          return "JST loaded from built-in sample.";
+        }
+        textarea.value = "JST could not load automatically from this static page. The online JST source is readable in a browser tab, but it does not currently allow this page to fetch the text directly.\n\nUse the JST Appendix source link below for this passage.";
+        versionTextCache.jst = textarea.value;
+        saveState();
+        return "JST source blocked by browser access rules.";
+      }
+    }
+
+    function populateSourceGuidance() {
+      const passage = passageInput.value.trim() || "John 1:1-5";
+      const esvTextarea = getEsvTextarea();
+      if (esvTextarea && (!esvTextarea.value.trim() || esvTextarea.value.startsWith("ESV auto-load requires"))) {
+        esvTextarea.value = "ESV auto-load requires Crossway ESV API access through a small server, so this standalone GitHub Pages version links out instead.\n\nSelected passage: " + passage + "\nUse the ESV Passage source link above, then paste a short excerpt or notes here.";
+        versionTextCache.esv = esvTextarea.value;
+      }
+
+      const jeffersonTextarea = getJeffersonTextarea();
+      if (jeffersonTextarea && (!jeffersonTextarea.value.trim() || jeffersonTextarea.value.startsWith("The Jefferson Bible is not"))) {
+        jeffersonTextarea.value = "The Jefferson Bible is not a complete verse-by-verse Bible, so this app cannot reliably auto-match every selected passage.\n\nSelected passage: " + passage + "\nUse the Jefferson Bible source link above to check whether this material appears there.";
+        versionTextCache.jefferson = jeffersonTextarea.value;
+      }
+    }
+
+    async function loadAutoPassages(force = true) {
+      populateSourceGuidance();
+      const messages = [];
+      const kjvMessage = await loadKjvPassage(force);
+      if (kjvMessage) {
+        messages.push(kjvMessage);
+      }
+      const jstMessage = await loadJstPassage(force);
+      if (jstMessage) {
+        messages.push(jstMessage);
+      }
+      if (messages.length) {
+        autoLoadStatus.textContent = messages.join(" ");
+      }
+      else {
+        autoLoadStatus.textContent = "Select KJV or JST for automatic loading. Use source links for ESV and Jefferson Bible.";
+      }
+      saveState();
+    }
+
+    function scheduleAutoLoad(force = true) {
+      window.clearTimeout(autoLoadTimer);
+      autoLoadTimer = window.setTimeout(() => loadAutoPassages(force), 350);
+    }
+
+    function findPassageParts(passage) {
+      const normalized = (passage || "").trim();
+      const allBooks = Object.entries(bibleBooks).flatMap(([testament, books]) => books.map(book => ({ testament, ...book })));
+      const sortedBooks = allBooks.slice().sort((a, b) => b.name.length - a.name.length);
+      for (const book of sortedBooks) {
+        const lowerBook = book.name.toLowerCase();
+        const lowerPassage = normalized.toLowerCase();
+        if (lowerPassage === lowerBook || lowerPassage.startsWith(lowerBook + " ")) {
+          const rest = normalized.slice(book.name.length).trim();
+          const match = rest.match(/^(\d+)(?::(.+))?$/);
+          return {
+            testament: book.testament,
+            book: book.name,
+            chapter: match ? match[1] : "1",
+            verses: match && match[2] ? match[2] : ""
+          };
+        }
+      }
+      return null;
+    }
+
     function getState() {
       const selected = optionInputs.filter(input => input.checked).map(input => input.value);
-      const texts = {};
       document.querySelectorAll("[data-version-text]").forEach(textarea => {
-        texts[textarea.dataset.versionText] = textarea.value;
+        versionTextCache[textarea.dataset.versionText] = textarea.value;
       });
       return {
         passage: passageInput.value,
+        testament: testamentSelect.value,
+        book: bookSelect.value,
+        chapter: chapterSelect.value,
+        verses: versesInput.value,
         selected,
-        texts,
+        texts: { ...versionTextCache },
         notes: notesInput.value,
         bibleSimilarity: bibleSimilarityInput.value,
         ldsSimilarity: ldsSimilarityInput.value,
@@ -221,8 +684,10 @@
       catch (error) { return null; }
     }
 
-    function renderColumns() {
+    function renderColumns(preservedTexts, shouldSave = true) {
       const existingState = getState();
+      const existingTexts = preservedTexts || existingState.texts;
+      versionTextCache = { ...versionTextCache, ...existingTexts };
       columns.innerHTML = "";
       const selected = optionInputs.filter(input => input.checked).map(input => input.value);
       versions.filter(version => selected.includes(version.id)).forEach(version => {
@@ -239,10 +704,15 @@
         `;
         columns.appendChild(card);
         const textarea = card.querySelector("textarea");
-        textarea.value = existingState.texts[version.id] || "";
-        textarea.addEventListener("input", saveState);
+        textarea.value = existingTexts[version.id] || "";
+        textarea.addEventListener("input", () => {
+          versionTextCache[version.id] = textarea.value;
+          saveState();
+        });
       });
-      saveState();
+      if (shouldSave) {
+        saveState();
+      }
     }
 
     function copyComparison() {
@@ -266,25 +736,38 @@
     function restore() {
       const state = loadState();
       if (!state) {
+        testamentSelect.value = "new";
+        populateBooks("John");
+        populateChapters("1");
+        versesInput.value = "1-5";
+        updatePassage();
         renderColumns();
-        updateSourceLinks();
+        loadAutoPassages();
         return;
       }
-      passageInput.value = state.passage || passageInput.value;
+      const inferred = findPassageParts(state.passage) || {};
+      testamentSelect.value = state.testament || inferred.testament || "new";
+      populateBooks(state.book || inferred.book || "John");
+      populateChapters(state.chapter || inferred.chapter || "1");
+      versesInput.value = state.verses !== undefined ? state.verses : (inferred.verses || "");
+      updatePassage();
+      const selectedVersions = state.selected && state.selected.length ? state.selected : ["kjv"];
       optionInputs.forEach(input => {
-        input.checked = state.selected ? state.selected.includes(input.value) : input.value === "kjv";
+        input.checked = selectedVersions.includes(input.value);
       });
       notesInput.value = state.notes || "";
       bibleSimilarityInput.value = state.bibleSimilarity || "";
       ldsSimilarityInput.value = state.ldsSimilarity || "";
-      renderColumns();
+      versionTextCache = { ...(state.texts || {}) };
+      renderColumns(state.texts || {}, false);
       document.querySelectorAll("[data-version-text]").forEach(textarea => {
         textarea.value = (state.texts && state.texts[textarea.dataset.versionText]) || "";
+        versionTextCache[textarea.dataset.versionText] = textarea.value;
       });
-      updateSourceLinks();
       if (state.similarityHtml) {
         similarityResult.innerHTML = state.similarityHtml;
       }
+      loadAutoPassages(false);
     }
 
     function tokenize(text) {
@@ -335,8 +818,11 @@
       compareSimilarity();
     }
 
-    optionInputs.forEach(input => input.addEventListener("change", renderColumns));
-    passageInput.addEventListener("input", () => { updateSourceLinks(); saveState(); });
+    optionInputs.forEach(input => input.addEventListener("change", () => { renderColumns(); scheduleAutoLoad(false); }));
+    testamentSelect.addEventListener("change", () => { populateBooks(); updatePassage(); saveState(); scheduleAutoLoad(); });
+    bookSelect.addEventListener("change", () => { populateChapters(); updatePassage(); saveState(); scheduleAutoLoad(); });
+    chapterSelect.addEventListener("change", () => { updatePassage(); saveState(); scheduleAutoLoad(); });
+    versesInput.addEventListener("input", () => { updatePassage(); saveState(); scheduleAutoLoad(); });
     notesInput.addEventListener("input", saveState);
     bibleSimilarityInput.addEventListener("input", saveState);
     ldsSimilarityInput.addEventListener("input", saveState);
@@ -350,7 +836,6 @@
     document.querySelectorAll("[data-example]").forEach(button => {
       button.addEventListener("click", () => loadExample(button.dataset.example));
     });
-    document.getElementById("copy-notes").addEventListener("click", copyComparison);
     document.getElementById("clear-text").addEventListener("click", () => {
       document.querySelectorAll("[data-version-text]").forEach(textarea => textarea.value = "");
       saveState();
@@ -358,14 +843,20 @@
     document.getElementById("save-now").addEventListener("click", saveState);
     document.getElementById("reset-page").addEventListener("click", () => {
       localStorage.removeItem(storageKey);
+      versionTextCache = {};
       optionInputs.forEach(input => input.checked = input.value === "kjv");
-      passageInput.value = "John 1:1-5";
+      testamentSelect.value = "new";
+      populateBooks("John");
+      populateChapters("1");
+      versesInput.value = "1-5";
+      updatePassage();
       notesInput.value = "";
       bibleSimilarityInput.value = "";
       ldsSimilarityInput.value = "";
       similarityResult.innerHTML = "<h3>Similarity Notes</h3><p>Paste two passages or choose an example, then compare.</p>";
       renderColumns();
       updateSourceLinks();
+      loadAutoPassages();
     });
 
     restore();
