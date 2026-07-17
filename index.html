@@ -54,6 +54,7 @@
     .selected-passage span { display: block; color: var(--muted); font-size: .88rem; }
     .selected-passage strong { display: block; font-size: 1.25rem; color: var(--ink); }
     .load-status { margin: 0; color: var(--muted); font-size: .92rem; }
+    .compare-note { margin: 0 0 12px; color: var(--muted); font-size: .88rem; }
     .similarity { margin-top: 26px; padding-top: 8px; }
     .similarity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
     .result-panel { border: 1px solid var(--line); border-radius: 6px; background: var(--soft); padding: 14px; margin-top: 14px; min-height: 90px; }
@@ -126,6 +127,7 @@
 
     </section>
 
+    <p class="compare-note">Note: Copyright issues may prevent some text from populating.<br>For these cases, the links are provided below. Locate the passage and copy/paste into the text for a side-by-side comparison.</p>
     <section class="columns" id="columns" aria-label="Version comparison columns"></section>
 
     <section class="source-panel" aria-label="Source links">
@@ -138,7 +140,7 @@
         <a id="esv-link" href="https://www.esv.org/John+1:1-5/" target="_blank" rel="noopener">ESV Passage</a>
         <a href="https://www.loc.gov/item/mtjbib026581/" target="_blank" rel="noopener">Jefferson Bible</a>
       </div>
-      <p class="note">KJV text loads automatically when online. JST excerpts load when a matching chapter entry exists. ESV requires Crossway API access through a server, and the Jefferson Bible is not a complete verse-by-verse Bible.</p>
+      <p class="note">KJV loads automatically when online. Some JST samples are built in; other versions may need the source links and manual paste.</p>
       <p class="load-status" id="auto-load-status">KJV will load automatically after the passage is selected.</p>
     </section>
 
@@ -285,6 +287,36 @@
     };
 
     const builtInJstFallbacks = {
+      john: {
+        "1": [
+          {
+            label: "JST, John 1:1-5",
+            compareReference: "John 1:1-5",
+            verses: [
+              {
+                verseNumber: "1",
+                text: "In the beginning was the gospel preached through the Son. And the gospel was the word, and the word was with the Son, and the Son was with God, and the Son was of God."
+              },
+              {
+                verseNumber: "2",
+                text: "The same was in the beginning with God."
+              },
+              {
+                verseNumber: "3",
+                text: "All things were made by him; and without him was not anything made which was made."
+              },
+              {
+                verseNumber: "4",
+                text: "In him was the gospel, and the gospel was the life, and the life was the light of men;"
+              },
+              {
+                verseNumber: "5",
+                text: "And the light shineth in the world, and the world perceiveth it not."
+              }
+            ]
+          }
+        ]
+      },
       mark: {
         "9": [
           {
@@ -301,7 +333,7 @@
       }
     };
 
-    const storageKey = "ldsLessonPlans.bibleVersionCompare";
+    const storageKey = "ldsLessonPlans.bibleVersionCompare.v2";
     const columns = document.getElementById("columns");
     const passageInput = document.getElementById("passage");
     const passageDisplay = document.getElementById("passage-display");
@@ -320,6 +352,16 @@
     let kjvLoadToken = 0;
     let jstLoadToken = 0;
     let autoLoadTimer = null;
+
+    function isGeneratedMessage(text) {
+      return [
+        "JST could not load automatically",
+        "A JST chapter entry exists",
+        "No JST excerpt was found",
+        "ESV auto-load requires",
+        "The Jefferson Bible is not a complete"
+      ].some(prefix => String(text || "").startsWith(prefix));
+    }
 
     function encodePassageForEsv(value) {
       return encodeURIComponent(value.trim()).replace(/%20/g, "+").replace(/%3A/g, ":");
@@ -546,7 +588,7 @@
       }
 
       const passage = passageInput.value.trim() || "John 1:1-5";
-      if (!force && textarea.value.trim()) {
+      if (!force && textarea.value.trim() && !isGeneratedMessage(textarea.value)) {
         return "JST already loaded.";
       }
 
@@ -587,25 +629,24 @@
           saveState();
           return "JST loaded from built-in sample.";
         }
-        textarea.value = "JST could not load automatically from this static page. The online JST source is readable in a browser tab, but it does not currently allow this page to fetch the text directly.\n\nUse the JST Appendix source link below for this passage.";
+        textarea.value = "JST did not auto-fill for this passage. Use the JST Appendix link below, then paste the passage here if you want to compare it.";
         versionTextCache.jst = textarea.value;
         saveState();
-        return "JST source blocked by browser access rules.";
+        return "JST needs manual paste for this passage.";
       }
     }
 
     function populateSourceGuidance() {
-      const passage = passageInput.value.trim() || "John 1:1-5";
       const esvTextarea = getEsvTextarea();
-      if (esvTextarea && (!esvTextarea.value.trim() || esvTextarea.value.startsWith("ESV auto-load requires"))) {
-        esvTextarea.value = "ESV auto-load requires Crossway ESV API access through a small server, so this standalone GitHub Pages version links out instead.\n\nSelected passage: " + passage + "\nUse the ESV Passage source link above, then paste a short excerpt or notes here.";
-        versionTextCache.esv = esvTextarea.value;
+      if (esvTextarea && isGeneratedMessage(esvTextarea.value)) {
+        esvTextarea.value = "";
+        versionTextCache.esv = "";
       }
 
       const jeffersonTextarea = getJeffersonTextarea();
-      if (jeffersonTextarea && (!jeffersonTextarea.value.trim() || jeffersonTextarea.value.startsWith("The Jefferson Bible is not"))) {
-        jeffersonTextarea.value = "The Jefferson Bible is not a complete verse-by-verse Bible, so this app cannot reliably auto-match every selected passage.\n\nSelected passage: " + passage + "\nUse the Jefferson Bible source link above to check whether this material appears there.";
-        versionTextCache.jefferson = jeffersonTextarea.value;
+      if (jeffersonTextarea && isGeneratedMessage(jeffersonTextarea.value)) {
+        jeffersonTextarea.value = "";
+        versionTextCache.jefferson = "";
       }
     }
 
@@ -632,6 +673,25 @@
     function scheduleAutoLoad(force = true) {
       window.clearTimeout(autoLoadTimer);
       autoLoadTimer = window.setTimeout(() => loadAutoPassages(force), 350);
+    }
+
+    function clearAutoFilledText() {
+      ["kjv", "jst"].forEach(id => {
+        versionTextCache[id] = "";
+        const textarea = document.querySelector('[data-version-text="' + id + '"]');
+        if (textarea) {
+          textarea.value = "";
+        }
+      });
+      ["esv", "jefferson"].forEach(id => {
+        if (isGeneratedMessage(versionTextCache[id])) {
+          versionTextCache[id] = "";
+        }
+        const textarea = document.querySelector('[data-version-text="' + id + '"]');
+        if (textarea && isGeneratedMessage(textarea.value)) {
+          textarea.value = "";
+        }
+      });
     }
 
     function findPassageParts(passage) {
@@ -818,11 +878,11 @@
       compareSimilarity();
     }
 
-    optionInputs.forEach(input => input.addEventListener("change", () => { renderColumns(); scheduleAutoLoad(false); }));
-    testamentSelect.addEventListener("change", () => { populateBooks(); updatePassage(); saveState(); scheduleAutoLoad(); });
-    bookSelect.addEventListener("change", () => { populateChapters(); updatePassage(); saveState(); scheduleAutoLoad(); });
-    chapterSelect.addEventListener("change", () => { updatePassage(); saveState(); scheduleAutoLoad(); });
-    versesInput.addEventListener("input", () => { updatePassage(); saveState(); scheduleAutoLoad(); });
+    optionInputs.forEach(input => input.addEventListener("change", () => { renderColumns(); scheduleAutoLoad(); }));
+    testamentSelect.addEventListener("change", () => { populateBooks(); updatePassage(); clearAutoFilledText(); saveState(); scheduleAutoLoad(); });
+    bookSelect.addEventListener("change", () => { populateChapters(); updatePassage(); clearAutoFilledText(); saveState(); scheduleAutoLoad(); });
+    chapterSelect.addEventListener("change", () => { updatePassage(); clearAutoFilledText(); saveState(); scheduleAutoLoad(); });
+    versesInput.addEventListener("input", () => { updatePassage(); clearAutoFilledText(); saveState(); scheduleAutoLoad(); });
     notesInput.addEventListener("input", saveState);
     bibleSimilarityInput.addEventListener("input", saveState);
     ldsSimilarityInput.addEventListener("input", saveState);
